@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Мои генерации — Wrap Vision{% endblock %}
+{% block body_class %}ds-page--gallery{% endblock %}
+{% block content %}
+  <div class="ds-shell ds-shell--gallery">
+    <header class="ds-chrome gallery-hero">
+      <div class="ds-chrome__left">
+        <a class="ds-logo" href="/">Wrap Vision</a>
+        <div class="ds-chrome__intro">
+          <h1 class="ds-chrome__title">Мои работы</h1>
+          <p class="ds-chrome__subtitle">Галерея сохранённых генераций — клик по карточке открывает полный результат на отдельной странице.</p>
+        </div>
+      </div>
+      <nav class="ds-nav" aria-label="Аккаунт">
+        <span class="ds-nav__hello">{{ current_user.name }}</span>
+        <a class="ds-nav__link ds-nav__link--accent" href="/">Новая генерация</a>
+        <form class="ds-nav__logout" method="post" action="/logout"><button type="submit" class="btn btn--ghost btn--sm">Выйти</button></form>
+      </nav>
+    </header>
+
+    {% if projects %}
+    <section class="gallery-feed" aria-label="Сохранённые генерации">
+      <div class="creation-grid">
+        {% for p in projects %}
+        <a class="creation-card" href="/result/{{ p.id }}">
+          <div class="creation-card__frame">
+            <div class="creation-card__media">
+              {% if p.result_image_path %}
+              <img src="{{ p.result_image_path }}" alt="Превью генерации" loading="lazy" decoding="async" width="640" height="400">
+              {% else %}
+              <div class="creation-card__placeholder" aria-hidden="true">
+                <span class="creation-card__placeholder-ring"></span>
+                <span class="creation-card__placeholder-label">Результат ещё не сохранён</span>
+              </div>
+              {% endif %}
+            </div>
+            <div class="creation-card__overlay" aria-hidden="true">
+              <span class="creation-card__cta">Открыть проект</span>
+            </div>
+            <div class="creation-card__dock">
+              <time class="creation-card__date"{% if p.created_at %} datetime="{{ p.created_at.isoformat() }}"{% endif %}>{{ p.created_at.strftime('%d.%m.%Y · %H:%M') if p.created_at else '—' }}</time>
+            </div>
+          </div>
+          <div class="creation-card__foot">
+            <span class="creation-card__meta">{{ p.city or 'Город не указан' }}</span>
+            <span class="creation-card__snippet creation-card__snippet--muted">Проект #{{ p.id }}</span>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% else %}
+    <section class="gallery-empty" aria-labelledby="gallery-empty-title">
+      <div class="gallery-empty__glow" aria-hidden="true"></div>
+      <h2 id="gallery-empty-title" class="gallery-empty__title">Пока нет работ в галерее</h2>
+      <p class="gallery-empty__text">Создайте первую генерацию — превью и параметры появятся здесь в виде карточек.</p>
+      <a class="btn btn--primary btn--wide gallery-empty__cta" href="/">Создать генерацию</a>
+    </section>
+    {% endif %}
+  </div>
+{% endblock %}

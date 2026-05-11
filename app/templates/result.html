@@ -1,0 +1,424 @@
+{% extends "base.html" %}
+{% block title %}Результат — Wrap Vision{% endblock %}
+{% block body_class %}ds-page--result{% endblock %}
+{% block content %}
+  <div class="ds-shell ds-shell--result">
+    <header class="ds-chrome ds-chrome--compact showcase-header">
+      <div class="ds-chrome__left">
+        <a class="ds-logo" href="/">Wrap Vision</a>
+        <div class="ds-chrome__intro showcase-header__intro">
+          <p class="showcase-header__eyebrow">Превью оклейки</p>
+          <p class="showcase-header__tagline">Результат и материалы запроса.</p>
+        </div>
+      </div>
+      <nav class="ds-nav" aria-label="Аккаунт">
+        {% if current_user %}
+        <span class="ds-nav__hello">{{ current_user.name }}</span>
+        <a class="ds-nav__link" href="/my/generations">Галерея</a>
+        <form class="ds-nav__logout" method="post" action="/logout"><button type="submit" class="btn btn--ghost btn--sm">Выйти</button></form>
+        {% else %}
+        <a class="ds-nav__link" href="/login">Вход</a>
+        <a class="ds-nav__link" href="/register">Регистрация</a>
+        {% endif %}
+        <a class="ds-nav__link ds-nav__link--accent" href="/">На главную</a>
+      </nav>
+    </header>
+
+    <main class="showcase-main">
+      <section class="showcase-hero" aria-labelledby="showcase-title">
+        <div class="showcase-hero__stage">
+          <div class="showcase-hero__frame">
+            <img src="{{ result_image_url }}" alt="Результат предпросмотра оклейки" class="showcase-hero__img" width="1200" height="900" decoding="async">
+          </div>
+          <div class="showcase-hero__download">
+            {% set _dl_name = (result_image_url.split('/')[-1] if '/' in result_image_url else 'wrapvision-result.png') %}
+            <a class="btn btn--primary showcase-hero__download-btn" href="{{ result_image_url }}" download="{{ _dl_name }}" aria-label="Скачать изображение результата">Скачать</a>
+          </div>
+        </div>
+
+        <aside class="showcase-side" aria-label="Кратко о генерации">
+          <p class="ds-eyebrow">Готово</p>
+          <h1 id="showcase-title" class="showcase-side__title">Ваш результат</h1>
+          <p class="showcase-side__lead">Параметры этой генерации и следующие шаги.</p>
+
+          <dl class="showcase-kv">
+            <div class="showcase-kv__row">
+              <dt>Статус</dt>
+              <dd>Готово</dd>
+            </div>
+            {% if project_id != none %}
+            <div class="showcase-kv__row">
+              <dt>Проект</dt>
+              <dd><span class="showcase-kv__mono">#{{ project_id }}</span></dd>
+            </div>
+            {% endif %}
+            {% if created_at %}
+            <div class="showcase-kv__row">
+              <dt>Дата</dt>
+              <dd><time datetime="{{ created_at.isoformat() }}">{{ created_at.strftime('%d.%m.%Y · %H:%M') }}</time></dd>
+            </div>
+            {% endif %}
+            <div class="showcase-kv__row">
+              <dt>Город</dt>
+              <dd>{{ user_city }}</dd>
+            </div>
+          </dl>
+
+          <div class="showcase-actions">
+            <a class="btn btn--primary" href="/">Новая генерация</a>
+            {% if current_user %}
+            <a class="btn btn--ghost" href="/my/generations">В галерею</a>
+            {% endif %}
+          </div>
+
+          <details class="showcase-details">
+            <summary>Параметры запроса</summary>
+            <ul class="showcase-details__list">
+              <li><span class="showcase-details__k">Диски</span> {% if wheels_need %}да{% if wheel_line %} · {{ wheel_line }}{% elif wheel_filename %} · {{ wheel_filename }}{% endif %}{% else %}нет{% endif %}</li>
+              <li><span class="showcase-details__k">Файл авто</span> <code class="showcase-details__code">{{ car_filename }}</code></li>
+              <li><span class="showcase-details__k">Плёнка</span> {% if wrap_filename %}<code class="showcase-details__code">{{ wrap_filename }}</code>{% else %}без смены{% endif %}</li>
+            </ul>
+          </details>
+        </aside>
+      </section>
+
+      <section class="showcase-band showcase-band--refs" aria-labelledby="refs-heading">
+        <div class="showcase-band__head">
+          <h2 id="refs-heading" class="showcase-band__title">Исходные кадры</h2>
+          <p class="showcase-band__sub">Референсы, которые участвовали в запросе.</p>
+        </div>
+        {% if car_filename %}
+        {% if wrap_filename and wheels_need %}
+        <p class="showcase-band__hint">Порядок в промпте: стенд → авто → плёнка → диски.</p>
+        {% elif wrap_filename %}
+        <p class="showcase-band__hint">Порядок в промпте: стенд → авто → плёнка.</p>
+        {% elif wheels_need %}
+        <p class="showcase-band__hint">Порядок в промпте: стенд → авто → диски.</p>
+        {% else %}
+        <p class="showcase-band__hint">Порядок в промпте: стенд → авто.</p>
+        {% endif %}
+        <div class="ref-rail">
+          <figure class="ref-rail__item">
+            <div class="ref-rail__tag">1 · стенд</div>
+            <div class="ref-rail__img"><img src="/static/img/stand_reference.jpg" alt="Эталон стенда" loading="lazy"></div>
+            <figcaption>Stand reference</figcaption>
+          </figure>
+          <figure class="ref-rail__item">
+            <div class="ref-rail__tag">2 · авто</div>
+            <div class="ref-rail__img"><img src="/uploads/{{ car_filename }}" alt="Ваш автомобиль" loading="lazy"></div>
+            <figcaption>Ваше авто</figcaption>
+          </figure>
+          {% if wrap_filename %}
+          <figure class="ref-rail__item">
+            <div class="ref-rail__tag">3 · плёнка</div>
+            <div class="ref-rail__img"><img src="/uploads/{{ wrap_filename }}" alt="Референс плёнки" loading="lazy"></div>
+            <figcaption>Плёнка</figcaption>
+          </figure>
+          {% endif %}
+          {% set wheel_img = wheel_ref_image_url if wheel_ref_image_url else (('/uploads/' ~ wheel_filename) if (wheels_need and wheel_filename) else '') %}
+          {% if wheels_need and wheel_img %}
+          <figure class="ref-rail__item">
+            <div class="ref-rail__tag">{% if wrap_filename %}4{% else %}3{% endif %} · диски</div>
+            <div class="ref-rail__img"><img src="{{ wheel_img }}" alt="Референс дисков" loading="lazy"></div>
+            <figcaption>Диски</figcaption>
+          </figure>
+          {% endif %}
+        </div>
+        {% else %}
+        <p class="showcase-band__empty">Исходные файлы этой генерации в базе не сохранены — доступен только итоговый кадр выше.</p>
+        {% endif %}
+      </section>
+
+      <section class="showcase-band showcase-band--partners partner-hub-section" id="service-centers-section" data-city="{{ user_city }}" aria-labelledby="partners-heading">
+        <div class="showcase-band__head showcase-band__head--split">
+          <div>
+            <h2 id="partners-heading" class="showcase-band__title">Дальше — оклейка в городе</h2>
+            <p class="showcase-band__sub">Партнёрские мастерские в {{ user_city }}: на карте и в списке ниже — позвоните или зайдите на сайт, когда будете готовы.</p>
+          </div>
+        </div>
+
+        <div class="partner-hub">
+          <div class="partner-hub__map-panel" aria-labelledby="partners-map-title">
+            <div class="partner-hub__map-head">
+              <h3 id="partners-map-title" class="partner-hub__map-title">Карта партнёров</h3>
+              <p class="partner-hub__map-lead">Точки — мастерские из каталога для выбранного города.</p>
+            </div>
+            <div id="partners-google-map" class="partner-hub__map-canvas" role="region" aria-label="Карта партнёрских мастерских"></div>
+          </div>
+
+          <div class="partner-hub__list-panel">
+            {% if service_centers %}
+            <div class="partner-grid">
+              {% for sc in service_centers %}
+              <article class="partner-card" data-service-center-id="{{ sc.id }}" role="group" aria-label="{{ sc.name }}">
+                <h3 class="partner-card__name">{{ sc.name }}</h3>
+                {% if sc.address %}
+                <p class="partner-card__addr">{{ sc.address }}</p>
+                {% endif %}
+                {% if sc.phone or sc.website %}
+                <div class="partner-card__actions">
+                  {% if sc.phone %}
+                  {% set tel_digits = sc.phone|replace(' ', '')|replace('(', '')|replace(')', '')|replace('-', '') %}
+                  <a class="btn btn--ghost btn--sm" href="tel:{{ tel_digits }}">Позвонить</a>
+                  {% endif %}
+                  {% if sc.website %}
+                  <a class="btn btn--ghost btn--sm" href="{{ sc.website }}" target="_blank" rel="noopener noreferrer">Сайт</a>
+                  {% endif %}
+                </div>
+                {% endif %}
+                {% if sc.description %}
+                <p class="partner-card__desc">{{ sc.description }}</p>
+                {% endif %}
+              </article>
+              {% endfor %}
+            </div>
+            {% else %}
+            <div class="partner-empty">
+              <p class="partner-empty__text">В каталоге пока нет мастерских для этого города. Попробуйте другой город в следующей заявке или свяжитесь с сервисом напрямую.</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script type="application/json" id="partner-map-boot">{{ {"mapsApiKey": maps_api_key, "points": partner_map_points, "fallbackLat": map_fallback_lat, "fallbackLng": map_fallback_lng}|tojson }}</script>
+  <script>
+  (function () {
+    var LOG = "[WrapVision Maps]";
+    var bootEl = document.getElementById("partner-map-boot");
+    var mapEl = document.getElementById("partners-google-map");
+    if (!bootEl || !mapEl) {
+      console.error(LOG, "missing #partner-map-boot or #partners-google-map");
+      return;
+    }
+
+    function showMapMessage(text) {
+      mapEl.innerHTML = "<p class=\"partner-hub__map-message\" role=\"status\">" + text + "</p>";
+    }
+
+    var boot;
+    try {
+      boot = JSON.parse(bootEl.textContent || "{}");
+    } catch (e) {
+      console.error(LOG, "JSON parse partner-map-boot failed", e);
+      showMapMessage("Не удалось разобрать данные карты.");
+      return;
+    }
+
+    var key = (boot.mapsApiKey || "").trim();
+    var pts = Array.isArray(boot.points) ? boot.points : [];
+    var fbLat = Number(boot.fallbackLat);
+    var fbLng = Number(boot.fallbackLng);
+    if (!Number.isFinite(fbLat)) fbLat = 55.7558;
+    if (!Number.isFinite(fbLng)) fbLng = 37.6173;
+
+    console.info(LOG, "boot", {
+      markerCount: pts.length,
+      hasApiKey: !!key,
+      apiKeyLength: key.length,
+      fallback: { lat: fbLat, lng: fbLng },
+    });
+
+    if (!key) {
+      console.warn(LOG, "GOOGLE_MAPS_API_KEY пустой — карта не запрашивается");
+      showMapMessage("Чтобы показать карту, задайте переменную GOOGLE_MAPS_API_KEY в файле .env в корне проекта.");
+      return;
+    }
+
+    var mapInitDone = false;
+
+    window.gm_authFailure = function () {
+      console.error(
+        LOG,
+        "gm_authFailure / InvalidKeyMapError: ключ в .env не принят Google — проверьте значение GOOGLE_MAPS_API_KEY (опечатка, другой проект, удалённый ключ), что включён Maps JavaScript API и привязан биллинг к проекту."
+      );
+      showMapMessage(
+        "Ключ Google Maps не принят (InvalidKeyMapError). Сверьте GOOGLE_MAPS_API_KEY с ключом в Google Cloud → Credentials, включите Maps JavaScript API и биллинг для этого проекта; при ограничении по сайту добавьте http://127.0.0.1:8000/* и http://localhost:8000/*."
+      );
+    };
+
+    window.initWrapVisionPartnersMap = function () {
+      if (mapInitDone) {
+        console.warn(LOG, "callback initWrapVisionPartnersMap вызван повторно — пропуск");
+        return;
+      }
+      mapInitDone = true;
+
+      console.info(LOG, "callback: API script loaded, creating Map…");
+
+      if (typeof google === "undefined" || !google.maps) {
+        console.error(LOG, "google.maps недоступен после загрузки скрипта");
+        showMapMessage("Карта временно недоступна.");
+        return;
+      }
+
+      try {
+        var center = { lat: fbLat, lng: fbLng };
+        var map = new google.maps.Map(mapEl, {
+          center: center,
+          zoom: pts.length ? 11 : 10,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: true,
+        });
+
+        if (!pts.length) {
+          console.info(LOG, "карта создана без маркеров (нет точек с координатами для этого города)");
+          return;
+        }
+
+        function escText(s) {
+          if (s == null || s === "") return "";
+          var d = document.createElement("div");
+          d.textContent = String(s);
+          return d.innerHTML;
+        }
+
+        function safeWebsiteUrl(u) {
+          if (!u || typeof u !== "string") return "";
+          var t = u.trim();
+          if (!/^https?:\/\//i.test(t)) return "";
+          return t;
+        }
+
+        function escAttr(s) {
+          return String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;");
+        }
+
+        function buildInfoHtml(p) {
+          var site = safeWebsiteUrl(p.website);
+          var tel = p.tel && typeof p.tel === "string" ? p.tel : "";
+          var actions = "";
+          if (tel) {
+            actions +=
+              '<a class="map-infowindow__btn" href="tel:' +
+              escAttr(tel) +
+              '">Позвонить</a>';
+          }
+          if (site) {
+            actions +=
+              '<a class="map-infowindow__btn map-infowindow__btn--primary" href="' +
+              escAttr(site) +
+              '" target="_blank" rel="noopener noreferrer">Сайт</a>';
+          }
+          return (
+            '<div class="map-infowindow">' +
+            '<div class="map-infowindow__name">' +
+            escText(p.name) +
+            "</div>" +
+            '<div class="map-infowindow__addr">' +
+            escText(p.address) +
+            "</div>" +
+            '<div class="map-infowindow__actions">' +
+            actions +
+            "</div></div>"
+          );
+        }
+
+        function clearCardHighlight() {
+          document.querySelectorAll(".partner-card--highlight").forEach(function (el) {
+            el.classList.remove("partner-card--highlight");
+          });
+        }
+
+        function highlightCardByServiceId(sid) {
+          clearCardHighlight();
+          var card = document.querySelector(
+            '.partner-card[data-service-center-id="' + String(sid) + '"]'
+          );
+          if (card) {
+            card.classList.add("partner-card--highlight");
+            card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        }
+
+        var infoWindow = new google.maps.InfoWindow();
+        var markersById = {};
+
+        function openInfoForPoint(p, marker) {
+          infoWindow.setContent(buildInfoHtml(p));
+          infoWindow.open({ map: map, anchor: marker });
+          highlightCardByServiceId(p.id);
+        }
+
+        function focusMarkerByServiceId(sid) {
+          var marker = markersById[sid];
+          if (!marker) return;
+          var p = pts.find(function (x) {
+            return x.id === sid;
+          });
+          if (!p) return;
+          map.panTo(marker.getPosition());
+          if (map.getZoom() < 14) map.setZoom(14);
+          openInfoForPoint(p, marker);
+        }
+
+        var bounds = new google.maps.LatLngBounds();
+        for (var i = 0; i < pts.length; i++) {
+          var p = pts[i];
+          var pos = { lat: p.lat, lng: p.lng };
+          bounds.extend(pos);
+          var marker = new google.maps.Marker({
+            position: pos,
+            map: map,
+            title: p.name || "",
+          });
+          markersById[p.id] = marker;
+          marker.addListener("click", function (pt, mk) {
+            return function () {
+              openInfoForPoint(pt, mk);
+            };
+          }(p, marker));
+        }
+
+        if (pts.length > 1) {
+          map.fitBounds(bounds);
+        } else {
+          map.setCenter({ lat: pts[0].lat, lng: pts[0].lng });
+          map.setZoom(14);
+        }
+
+        map.addListener("click", function () {
+          clearCardHighlight();
+        });
+
+        document.querySelectorAll(".partner-card[data-service-center-id]").forEach(function (card) {
+          card.addEventListener("click", function (e) {
+            if (e.target.closest("a, button")) return;
+            var raw = card.getAttribute("data-service-center-id");
+            var sid = parseInt(raw, 10);
+            if (!Number.isFinite(sid)) return;
+            focusMarkerByServiceId(sid);
+          });
+        });
+
+        console.info(LOG, "готово: карта и", pts.length, "маркер(ов), клики + InfoWindow");
+      } catch (e) {
+        console.error(LOG, "ошибка при создании карты / маркеров", e);
+        showMapMessage("Ошибка инициализации карты. Подробности в консоли браузера.");
+      }
+    };
+
+    var script = document.createElement("script");
+    script.src =
+      "https://maps.googleapis.com/maps/api/js?key=" +
+      encodeURIComponent(key) +
+      "&callback=initWrapVisionPartnersMap&loading=async&v=weekly";
+    script.async = true;
+    script.defer = true;
+    script.onerror = function () {
+      console.error(LOG, "не удалось загрузить скрипт maps/api/js (сеть или блокировка)");
+      showMapMessage("Не удалось загрузить Google Карты. Проверьте сеть и консоль.");
+    };
+    console.info(LOG, "inject maps/api/js (loading=async, v=weekly, callback), key length =", key.length);
+    document.head.appendChild(script);
+  })();
+  </script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Вход — Wrap Vision{% endblock %}
+{% block body_class %}ds-page--auth{% endblock %}
+{% block content %}
+  <main class="auth-gate" role="main">
+    <div class="auth-gate__bg" aria-hidden="true"></div>
+    <div class="auth-gate__layout">
+      <header class="auth-strip">
+        <a class="auth-strip__brand" href="/">
+          <span class="auth-strip__brand-mark">Wrap Vision</span>
+          <span class="auth-strip__brand-tag">AI preview</span>
+        </a>
+        <nav class="auth-strip__nav" aria-label="Аккаунт">
+          {% if current_user %}
+          <span class="auth-strip__hello">{{ current_user.name }}</span>
+          <a class="auth-strip__link" href="/my/generations">Галерея</a>
+          <form class="auth-strip__logout" method="post" action="/logout"><button type="submit" class="btn btn--ghost btn--sm">Выйти</button></form>
+          {% else %}
+          <a class="auth-strip__link" href="/">Главная</a>
+          <a class="auth-strip__link auth-strip__link--accent" href="/register">Регистрация</a>
+          {% endif %}
+        </nav>
+      </header>
+
+      <section class="auth-panel" aria-labelledby="auth-title">
+        <div class="auth-panel__intro">
+          <p class="auth-panel__eyebrow">Аккаунт</p>
+          <h1 id="auth-title" class="auth-panel__title">Вход</h1>
+          <p class="auth-panel__lead">Сессия в защищённой cookie на сервере.</p>
+        </div>
+        {% if error %}
+        <div class="auth-alert" role="alert">{{ error }}</div>
+        {% endif %}
+        <form class="auth-form auth-form--stack" method="post" action="/login">
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <label class="auth-field">
+            <span class="auth-field__label">Email</span>
+            <input class="input input--auth" type="email" name="email" required autocomplete="email" placeholder="you@example.com" value="{{ form_email|default('') }}">
+          </label>
+          <label class="auth-field">
+            <span class="auth-field__label">Пароль</span>
+            <input class="input input--auth" type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+          </label>
+          <button type="submit" class="btn btn--primary btn--wide btn--auth-submit">Войти</button>
+        </form>
+        <div class="auth-panel__meta">
+          <a class="auth-panel__alt" href="/register">Нет аккаунта — зарегистрироваться</a>
+        </div>
+      </section>
+    </div>
+  </main>
+{% endblock %}

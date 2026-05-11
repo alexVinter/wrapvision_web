@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+{% block title %}Wrap Vision — генерация{% endblock %}
+{% block body_class %}ds-page--gen{% endblock %}
+{% block content %}
+<div class="gen-workspace" role="main">
+  <header class="gen-topbar">
+    <div class="gen-topbar__brand">
+      <a class="gen-topbar__logo" href="/">Wrap Vision</a>
+      <div class="gen-topbar__product">
+        <span class="gen-topbar__name">Предпросмотр оклейки</span>
+        <span class="gen-topbar__meta">AI workspace</span>
+      </div>
+    </div>
+    <nav class="gen-topbar__nav" aria-label="Аккаунт">
+      {% if current_user %}
+      <span class="gen-topbar__hello">{{ current_user.name }}</span>
+      <a class="gen-topbar__link" href="/my/generations">Галерея</a>
+      <form class="gen-topbar__logout" method="post" action="/logout"><button type="submit" class="btn btn--ghost btn--sm">Выйти</button></form>
+      {% else %}
+      <a class="gen-topbar__link" href="/login">Вход</a>
+      <a class="gen-topbar__link gen-topbar__link--accent" href="/register">Регистрация</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <form class="gen-form" id="generate-form" action="/generate" method="post" enctype="multipart/form-data">
+    <div class="gen-body">
+      <div class="gen-rail" aria-label="Параметры генерации">
+        <section class="gen-block">
+          <div class="gen-block__head">
+            <span class="gen-block__tag">1</span>
+            <h2 class="gen-block__title" id="gen-block-city-title">Город</h2>
+          </div>
+          <p class="gen-block__hint">
+            {% if current_user and current_user.city %}
+            Из профиля; после генерации подберём мастерские.
+            {% else %}
+            Для подбора партнёров рядом с вами.
+            {% endif %}
+          </p>
+          <label class="gen-field">
+            <input class="input input--sm gen-input gen-input--city" type="text" name="city" id="city" required autocomplete="address-level2" placeholder="Например, Москва" list="city-hints" value="{{ current_user.city if current_user and current_user.city else '' }}" aria-labelledby="gen-block-city-title">
+          </label>
+          <datalist id="city-hints">
+            <option value="Москва"></option>
+            <option value="Санкт-Петербург"></option>
+            <option value="Казань"></option>
+          </datalist>
+        </section>
+
+        <section class="gen-block">
+          <div class="gen-block__head">
+            <span class="gen-block__tag">2</span>
+            <h2 class="gen-block__title">Фото автомобиля</h2>
+          </div>
+          <p class="gen-block__hint">Весь кузов в кадре — точнее для результата.</p>
+          <div class="gen-dz" id="gen-dz-photo" data-gen-dropzone>
+            <label class="gen-dz__hit" for="gen-photo-input">
+              <input id="gen-photo-input" class="gen-dz__input" type="file" name="photo" accept="image/*" required aria-label="Фото автомобиля">
+              <span class="gen-dz__stack">
+                <span class="gen-dz__preview-wrap" hidden>
+                  <img class="gen-dz__thumb" alt="" decoding="async">
+                </span>
+                <span class="gen-dz__idle">
+                  <span class="gen-dz__line">Перетащите файл или нажмите</span>
+                  <span class="gen-dz__sub">PNG, JPG · один снимок</span>
+                </span>
+                <span class="gen-dz__ready" hidden>
+                  <span class="gen-dz__badge">Загружено</span>
+                  <span class="gen-dz__fname"></span>
+                  <span class="gen-dz__sub">Нажмите или перетащите, чтобы заменить</span>
+                </span>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <section class="gen-block">
+          <div class="gen-block__head">
+            <span class="gen-block__tag">3</span>
+            <h2 class="gen-block__title">Смена плёнки</h2>
+          </div>
+          <div class="chip-row chip-row--segmented gen-seg" role="group" aria-label="Нужна ли плёнка">
+            <label class="chip chip--segment"><input type="radio" name="wrap_needed" value="yes" checked><span>Да</span></label>
+            <label class="chip chip--segment"><input type="radio" name="wrap_needed" value="no"><span>Нет</span></label>
+          </div>
+          <p class="gen-block__hint gen-block__hint--tight">При «Нет» файл не нужен.</p>
+          <p class="gen-block__hint gen-block__hint--tight gen-wrap-upload-hint">Образец плёнки: текстура или образец, не фото автомобиля.</p>
+          <div class="gen-dz gen-dz--tight gen-dz--optional" id="wrap-film-field" data-gen-dropzone>
+            <label class="gen-dz__hit gen-dz__hit--pad" for="wrap_sample">
+              <input type="file" id="wrap_sample" class="gen-dz__input" name="wrap_sample" accept="image/*" required>
+              <span class="gen-dz__stack">
+                <span class="gen-dz__preview-wrap" hidden>
+                  <img class="gen-dz__thumb" alt="" decoding="async">
+                </span>
+                <span class="gen-dz__idle">
+                  <span class="gen-dz__line">Загрузить образец</span>
+                  <span class="gen-dz__sub">JPG или PNG</span>
+                </span>
+                <span class="gen-dz__ready" hidden>
+                  <span class="gen-dz__badge">Загружено</span>
+                  <span class="gen-dz__fname"></span>
+                  <span class="gen-dz__sub">Нажмите или перетащите, чтобы заменить</span>
+                </span>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <section class="gen-block">
+          <div class="gen-block__head">
+            <span class="gen-block__tag">4</span>
+            <h2 class="gen-block__title">Колёса</h2>
+          </div>
+          <div class="chip-row chip-row--segmented gen-seg" role="group" aria-label="Нужны ли диски">
+            <label class="chip chip--segment"><input type="radio" name="wheels_needed" value="yes"><span>Да</span></label>
+            <label class="chip chip--segment"><input type="radio" name="wheels_needed" value="no" checked><span>Нет</span></label>
+          </div>
+          <div class="gen-wheel" id="wheel-field">
+            <p class="gen-block__hint gen-block__hint--tight gen-wheel-hint" id="wheel-step-hint">Каталог или своё фото.</p>
+            <div class="wheel-source-toggle chip-row chip-row--segmented gen-seg gen-seg--tight" role="group" aria-label="Источник дисков">
+              {% if wheel_catalog_items %}
+              <label class="chip chip--segment chip--source"><input type="radio" name="wheel_source" value="catalog" checked><span>Каталог</span></label>
+              {% endif %}
+              <label class="chip chip--segment chip--source"><input type="radio" name="wheel_source" value="upload" {% if not wheel_catalog_items %}checked{% endif %}><span>Загрузка</span></label>
+            </div>
+            <div id="wheel-catalog-panel" class="wheel-catalog-panel" {% if not wheel_catalog_items %}hidden{% endif %}>
+              <div class="wheel-catalog-grid">
+                {% for w in wheel_catalog_items %}
+                <label class="wheel-catalog-card">
+                  <input type="radio" name="wheel_catalog_id" value="{{ w.id }}" {% if loop.first %}checked{% endif %}>
+                  <span class="wheel-catalog-card__inner">
+                    <span class="wheel-catalog-card__img"><img src="{{ w.img_url }}" alt="" loading="lazy"></span>
+                    <span class="wheel-catalog-card__title">{{ w.title }}</span>
+                  </span>
+                </label>
+                {% endfor %}
+              </div>
+              <p class="wheel-catalog__status" id="wheel-catalog-status" role="status" hidden></p>
+            </div>
+            <div id="wheel-upload-panel" class="wheel-upload-panel" {% if wheel_catalog_items %}hidden{% endif %}>
+              <div class="gen-dz gen-dz--tight" id="gen-dz-wheel" data-gen-dropzone>
+                <label class="gen-dz__hit gen-dz__hit--pad" for="wheel_image">
+                  <input type="file" id="wheel_image" class="gen-dz__input" name="wheel_image" accept="image/*">
+                  <span class="gen-dz__stack">
+                    <span class="gen-dz__preview-wrap" hidden>
+                      <img class="gen-dz__thumb" alt="" decoding="async">
+                    </span>
+                    <span class="gen-dz__idle">
+                      <span class="gen-dz__line">Загрузить фото дисков</span>
+                      <span class="gen-dz__sub">JPG или PNG</span>
+                    </span>
+                    <span class="gen-dz__ready" hidden>
+                      <span class="gen-dz__badge">Загружено</span>
+                      <span class="gen-dz__fname"></span>
+                      <span class="gen-dz__sub">Нажмите или перетащите, чтобы заменить</span>
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="gen-rail__cta">
+          <button type="submit" class="btn btn--primary btn--xl gen-cta">Сгенерировать превью</button>
+        </div>
+      </div>
+
+      <div class="gen-canvas" aria-label="Рабочая область">
+        <div class="gen-canvas-top">
+          <div class="gen-hero" id="gen-live-preview">
+            <div class="gen-hero__media">
+              <img src="{{ stand_reference_url }}" alt="Эталон стенда — первый кадр в запросе" class="gen-hero__img" width="1200" height="720" loading="eager">
+              <div class="gen-hero__veil"></div>
+              <div class="gen-hero__float">
+                <span class="gen-hero__pill">Stand reference</span>
+                <p class="gen-hero__kicker">
+                  Эталон студийного стенда идёт в запрос первым: фиксированные свет, ракурс и перспектива.
+                  Далее подставляются ваш автомобиль, файл плёнки и при необходимости диски — так превью остаётся
+                  в одной визуальной «сцене», без случайного фона.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <aside class="gen-build" id="gen-build-panel" aria-label="Сборка запроса">
+            <div class="gen-build__head">
+              <span class="gen-build__tag">Live</span>
+              <h2 class="gen-build__title">Сборка запроса</h2>
+              <p class="gen-build__lead">Что уходит в запрос вместе со стендом.</p>
+            </div>
+            <ul class="gen-build__rows" role="list">
+              <li class="gen-build__row">
+                <span class="gen-build__label">Сцена</span>
+                <span class="gen-build__val" id="gen-build-scene">Фиксированный стенд</span>
+              </li>
+              <li class="gen-build__row">
+                <span class="gen-build__label">Автомобиль</span>
+                <span class="gen-build__val" id="gen-build-photo">—</span>
+              </li>
+              <li class="gen-build__row">
+                <span class="gen-build__label">Плёнка</span>
+                <span class="gen-build__val" id="gen-build-wrap">—</span>
+              </li>
+              <li class="gen-build__row">
+                <span class="gen-build__label">Диски</span>
+                <span class="gen-build__val" id="gen-build-wheels">—</span>
+              </li>
+              <li class="gen-build__row">
+                <span class="gen-build__label">Город</span>
+                <span class="gen-build__val" id="gen-build-city">—</span>
+              </li>
+            </ul>
+            <div class="gen-build__previews" aria-label="Мини-превью файлов">
+              <div class="gen-build__pv" id="gen-build-pv-photo" hidden>
+                <span class="gen-build__pv-cap">Авто</span>
+                <img class="gen-build__pv-img" alt="" width="64" height="64" decoding="async">
+              </div>
+              <div class="gen-build__pv" id="gen-build-pv-wrap" hidden>
+                <span class="gen-build__pv-cap">Плёнка</span>
+                <img class="gen-build__pv-img" alt="" width="64" height="64" decoding="async">
+              </div>
+              <div class="gen-build__pv" id="gen-build-pv-wheel" hidden>
+                <span class="gen-build__pv-cap">Диски</span>
+                <img class="gen-build__pv-img" alt="" width="64" height="64" decoding="async">
+              </div>
+            </div>
+            <p class="gen-build__status" id="gen-build-status" role="status"></p>
+          </aside>
+        </div>
+
+        <section class="gen-showcase" aria-labelledby="gen-showcase-title">
+          <div class="gen-showcase__head">
+            <span class="gen-showcase__tag">Showcase</span>
+            <h2 id="gen-showcase-title" class="gen-showcase__title">Готовые кейсы</h2>
+          </div>
+          {% if showcase_items %}
+          <ul class="gen-showcase__grid">
+            {% for item in showcase_items %}
+            <li>
+              <article class="gen-showcase-card">
+                <div class="gen-showcase-card__media">
+                  <img src="{{ item.image_url }}" alt="" class="gen-showcase-card__img" width="640" height="400" loading="lazy" decoding="async">
+                </div>
+                <div class="gen-showcase-card__body">
+                  <h3 class="gen-showcase-card__title">{{ item.title }}</h3>
+                  <p class="gen-showcase-card__desc">{{ item.description }}</p>
+                </div>
+              </article>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="gen-showcase__empty">Пока нет завершённых генераций с сохранённым превью — после первой успешной генерации кейсы появятся здесь автоматически.</p>
+          {% endif %}
+        </section>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function () {
+      var wheelInput = document.getElementById("wheel_image");
+      var catPanel = document.getElementById("wheel-catalog-panel");
+      var upPanel = document.getElementById("wheel-upload-panel");
+      var wrapFilmField = document.getElementById("wrap-film-field");
+      var wrapSampleInput = document.getElementById("wrap_sample");
+      var wheelCatalogStatus = document.getElementById("wheel-catalog-status");
+
+      function wireDropzone(container, fileInput) {
+        if (!container || !fileInput) return null;
+        var idle = container.querySelector(".gen-dz__idle");
+        var ready = container.querySelector(".gen-dz__ready");
+        var fname = container.querySelector(".gen-dz__fname");
+        var prevWrap = container.querySelector(".gen-dz__preview-wrap");
+        var thumb = container.querySelector(".gen-dz__thumb");
+        var prevUrl = null;
+
+        function revokePreview() {
+          if (prevUrl) {
+            try {
+              URL.revokeObjectURL(prevUrl);
+            } catch (e) {}
+            prevUrl = null;
+          }
+        }
+
+        function applyFile(file) {
+          revokePreview();
+          if (!file) {
+            if (thumb) thumb.removeAttribute("src");
+            if (prevWrap) prevWrap.hidden = true;
+            if (idle) idle.hidden = false;
+            if (ready) ready.hidden = true;
+            container.classList.remove("is-filled");
+            return;
+          }
+          if (fname) fname.textContent = file.name || "Файл";
+          if (idle) idle.hidden = true;
+          if (ready) ready.hidden = false;
+          container.classList.add("is-filled");
+          if (thumb && prevWrap && file.type && file.type.indexOf("image/") === 0) {
+            prevUrl = URL.createObjectURL(file);
+            thumb.src = prevUrl;
+            prevWrap.hidden = false;
+          } else if (prevWrap) {
+            prevWrap.hidden = true;
+          }
+        }
+
+        function readInput() {
+          var f = fileInput.files && fileInput.files[0];
+          applyFile(f || null);
+          updateRequestBuild();
+        }
+
+        function clearAll() {
+          fileInput.value = "";
+          applyFile(null);
+          updateRequestBuild();
+        }
+
+        fileInput.addEventListener("change", readInput);
+
+        container.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          container.classList.add("is-dragover");
+        });
+        container.addEventListener("dragleave", function (e) {
+          if (!container.contains(e.relatedTarget)) {
+            container.classList.remove("is-dragover");
+          }
+        });
+        container.addEventListener("drop", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          container.classList.remove("is-dragover");
+          if (fileInput.disabled) return;
+          var dt = e.dataTransfer;
+          if (!dt || !dt.files || !dt.files.length) return;
+          var f = dt.files[0];
+          if (fileInput.accept && fileInput.accept.indexOf("image") !== -1 && f.type.indexOf("image/") !== 0) {
+            return;
+          }
+          try {
+            fileInput.files = dt.files;
+          } catch (err) {
+            return;
+          }
+          readInput();
+        });
+
+        return { clear: clearAll, refresh: readInput };
+      }
+
+      var photoDz = wireDropzone(document.getElementById("gen-dz-photo"), document.getElementById("gen-photo-input"));
+      var wrapDz = wrapFilmField && wrapSampleInput ? wireDropzone(wrapFilmField, wrapSampleInput) : null;
+      var wheelDz =
+        document.getElementById("gen-dz-wheel") && wheelInput
+          ? wireDropzone(document.getElementById("gen-dz-wheel"), wheelInput)
+          : null;
+
+      function wheelUseUpload() {
+        var u = document.querySelector('input[name="wheel_source"][value="upload"]');
+        return u && u.checked;
+      }
+
+      function wrapFilmNeeded() {
+        var y = document.querySelector('input[name="wrap_needed"][value="yes"]');
+        return !!(y && y.checked);
+      }
+
+      function updateWheelCatalogStatus() {
+        if (!wheelCatalogStatus) return;
+        var needWheels =
+          document.querySelector('input[name="wheels_needed"]:checked') &&
+          document.querySelector('input[name="wheels_needed"]:checked').value === "yes";
+        var catRadio = document.querySelector('input[name="wheel_source"][value="catalog"]');
+        var useCat = catRadio && catRadio.checked;
+        if (!needWheels || !useCat || !catPanel || catPanel.hidden) {
+          wheelCatalogStatus.hidden = true;
+          return;
+        }
+        var checked = document.querySelector('input[name="wheel_catalog_id"]:checked');
+        var card = checked && checked.closest(".wheel-catalog-card");
+        var titleEl = card && card.querySelector(".wheel-catalog-card__title");
+        var t = titleEl ? titleEl.textContent.trim() : "";
+        wheelCatalogStatus.textContent = t ? "Выбрано в каталоге: " + t : "Выбран вариант из каталога.";
+        wheelCatalogStatus.hidden = false;
+      }
+
+      function updateWheelStepLabels() {
+        var wrapOn = wrapFilmNeeded();
+        var hintEl = document.getElementById("wheel-step-hint");
+        var needWheels =
+          document.querySelector('input[name="wheels_needed"]:checked') &&
+          document.querySelector('input[name="wheels_needed"]:checked').value === "yes";
+        if (hintEl) {
+          if (!needWheels) {
+            hintEl.textContent = "Включите «Да», чтобы выбрать диски.";
+          } else {
+            hintEl.textContent = wrapOn
+              ? "Каталог или своё фото — после образца плёнки."
+              : "Каталог или своё фото — после фото автомобиля.";
+          }
+        }
+      }
+
+      function syncWrapFilm() {
+        var need = wrapFilmNeeded();
+        if (wrapFilmField) {
+          wrapFilmField.classList.toggle("is-muted", !need);
+        }
+        if (wrapSampleInput) {
+          wrapSampleInput.required = need;
+          wrapSampleInput.disabled = !need;
+        }
+        if (!need && wrapSampleInput) {
+          wrapSampleInput.value = "";
+          if (wrapDz) wrapDz.clear();
+        }
+        updateWheelStepLabels();
+        updateRequestBuild();
+      }
+
+      function syncWheelSource() {
+        var catRadio = document.querySelector('input[name="wheel_source"][value="catalog"]');
+        var useCat = catRadio && catRadio.checked;
+        if (catPanel) {
+          catPanel.hidden = !useCat;
+        }
+        if (upPanel) {
+          upPanel.hidden = !!useCat;
+        }
+        if (useCat && wheelDz) {
+          wheelDz.clear();
+        }
+        updateWheelCatalogStatus();
+        updateRequestBuild();
+      }
+
+      function syncWheels() {
+        var yes = document.querySelector('input[name="wheels_needed"]:checked');
+        var need = yes && yes.value === "yes";
+        document.getElementById("wheel-field").classList.toggle("is-muted", !need);
+        document.querySelectorAll('input[name="wheel_source"]').forEach(function (r) {
+          r.disabled = !need;
+        });
+        var useCat =
+          document.querySelector('input[name="wheel_source"][value="catalog"]') &&
+          document.querySelector('input[name="wheel_source"][value="catalog"]').checked;
+        if (catPanel) {
+          catPanel.querySelectorAll("input").forEach(function (i) {
+            i.disabled = !need || !useCat;
+          });
+        }
+        if (upPanel) {
+          upPanel.querySelectorAll('input[type="file"]').forEach(function (i) {
+            i.disabled = !need || useCat;
+          });
+        }
+        if (wheelInput) {
+          wheelInput.required = !!(need && wheelUseUpload());
+        }
+        if (!need && wheelInput && wheelDz) {
+          wheelInput.value = "";
+          wheelDz.clear();
+        }
+        syncWheelSource();
+        updateWheelStepLabels();
+        updateWheelCatalogStatus();
+        updateRequestBuild();
+      }
+
+      document.querySelectorAll('input[name="wrap_needed"]').forEach(function (el) {
+        el.addEventListener("change", function () {
+          syncWrapFilm();
+          syncWheels();
+        });
+      });
+      document.querySelectorAll('input[name="wheels_needed"]').forEach(function (el) {
+        el.addEventListener("change", syncWheels);
+      });
+      document.querySelectorAll('input[name="wheel_source"]').forEach(function (el) {
+        el.addEventListener("change", function () {
+          syncWheelSource();
+          syncWheels();
+        });
+      });
+      document.querySelectorAll('input[name="wheel_catalog_id"]').forEach(function (el) {
+        el.addEventListener("change", function () {
+          updateWheelCatalogStatus();
+          updateRequestBuild();
+        });
+      });
+
+      var buildPvRevoke = { photo: null, wrap: null, wheel: null };
+
+      function revokeBuildKey(key) {
+        if (buildPvRevoke[key]) {
+          try {
+            URL.revokeObjectURL(buildPvRevoke[key]);
+          } catch (e) {}
+          buildPvRevoke[key] = null;
+        }
+      }
+
+      function updateRequestBuild() {
+        var cityEl = document.getElementById("city");
+        var photoIn = document.getElementById("gen-photo-input");
+        var rowPhoto = document.getElementById("gen-build-photo");
+        var rowWrap = document.getElementById("gen-build-wrap");
+        var rowWheels = document.getElementById("gen-build-wheels");
+        var rowCity = document.getElementById("gen-build-city");
+        var st = document.getElementById("gen-build-status");
+        var pvPhoto = document.getElementById("gen-build-pv-photo");
+        var pvWrap = document.getElementById("gen-build-pv-wrap");
+        var pvWheel = document.getElementById("gen-build-pv-wheel");
+        var imgPhoto = pvPhoto && pvPhoto.querySelector(".gen-build__pv-img");
+        var imgWrap = pvWrap && pvWrap.querySelector(".gen-build__pv-img");
+        var imgWheel = pvWheel && pvWheel.querySelector(".gen-build__pv-img");
+
+        var cityVal = cityEl && cityEl.value ? cityEl.value.trim() : "";
+        if (rowCity) {
+          rowCity.textContent = cityVal || "—";
+        }
+
+        var photoFile = photoIn && photoIn.files && photoIn.files[0];
+        if (rowPhoto) {
+          rowPhoto.textContent = photoFile ? "Загружено" : "Не загружен";
+        }
+        revokeBuildKey("photo");
+        if (imgPhoto && pvPhoto) {
+          if (photoFile && photoFile.type && photoFile.type.indexOf("image/") === 0) {
+            var u = URL.createObjectURL(photoFile);
+            buildPvRevoke.photo = u;
+            imgPhoto.src = u;
+            pvPhoto.hidden = false;
+          } else {
+            imgPhoto.removeAttribute("src");
+            pvPhoto.hidden = true;
+          }
+        }
+
+        var wrapOn = wrapFilmNeeded();
+        if (rowWrap) {
+          if (!wrapOn) {
+            rowWrap.textContent = "Выключена";
+          } else {
+            var wFile = wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0];
+            rowWrap.textContent = wFile ? "Включена, загружено" : "Включена, файл не загружен";
+          }
+        }
+        revokeBuildKey("wrap");
+        if (imgWrap && pvWrap) {
+          if (wrapOn && wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0]) {
+            var wf = wrapSampleInput.files[0];
+            if (wf.type && wf.type.indexOf("image/") === 0) {
+              var uw = URL.createObjectURL(wf);
+              buildPvRevoke.wrap = uw;
+              imgWrap.src = uw;
+              pvWrap.hidden = false;
+            } else {
+              imgWrap.removeAttribute("src");
+              pvWrap.hidden = true;
+            }
+          } else {
+            imgWrap.removeAttribute("src");
+            pvWrap.hidden = true;
+          }
+        }
+
+        var needWheels =
+          document.querySelector('input[name="wheels_needed"]:checked') &&
+          document.querySelector('input[name="wheels_needed"]:checked').value === "yes";
+        var catRadio = document.querySelector('input[name="wheel_source"][value="catalog"]');
+        var useCat = !!(catRadio && catRadio.checked);
+        var catImgSrc = "";
+        if (needWheels && useCat) {
+          var chk = document.querySelector('input[name="wheel_catalog_id"]:checked');
+          var card = chk && chk.closest(".wheel-catalog-card");
+          var cimg = card && card.querySelector(".wheel-catalog-card__img img");
+          catImgSrc = cimg && cimg.getAttribute("src") ? cimg.getAttribute("src") : "";
+        }
+        var wheelFile = wheelInput && wheelInput.files && wheelInput.files[0];
+
+        if (rowWheels) {
+          if (!needWheels) {
+            rowWheels.textContent = "Выключены";
+          } else if (useCat) {
+            var chk2 = document.querySelector('input[name="wheel_catalog_id"]:checked');
+            var card2 = chk2 && chk2.closest(".wheel-catalog-card");
+            var titleEl = card2 && card2.querySelector(".wheel-catalog-card__title");
+            var t = titleEl ? titleEl.textContent.trim() : "";
+            rowWheels.textContent = t ? "Каталог: " + t : "Каталог";
+          } else {
+            rowWheels.textContent = wheelFile ? "Загружено" : "Загрузка — файл не выбран";
+          }
+        }
+
+        revokeBuildKey("wheel");
+        if (imgWheel && pvWheel) {
+          if (!needWheels) {
+            imgWheel.removeAttribute("src");
+            pvWheel.hidden = true;
+          } else if (useCat && catImgSrc) {
+            imgWheel.src = catImgSrc;
+            pvWheel.hidden = false;
+          } else if (!useCat && wheelFile && wheelFile.type && wheelFile.type.indexOf("image/") === 0) {
+            var uw2 = URL.createObjectURL(wheelFile);
+            buildPvRevoke.wheel = uw2;
+            imgWheel.src = uw2;
+            pvWheel.hidden = false;
+          } else {
+            imgWheel.removeAttribute("src");
+            pvWheel.hidden = true;
+          }
+        }
+
+        var missing = [];
+        if (!cityVal) {
+          missing.push("город");
+        }
+        if (!photoFile) {
+          missing.push("фото автомобиля");
+        }
+        if (wrapOn) {
+          var wNeed = wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0];
+          if (!wNeed) {
+            missing.push("образец плёнки");
+          }
+        }
+        if (needWheels) {
+          if (useCat) {
+            var hasCat = document.querySelector('input[name="wheel_catalog_id"]:checked');
+            if (!hasCat) {
+              missing.push("диски из каталога");
+            }
+          } else if (!wheelFile) {
+            missing.push("фото дисков");
+          }
+        }
+
+        if (st) {
+          if (!missing.length) {
+            st.textContent = "Готово к генерации";
+            st.className = "gen-build__status gen-build__status--ok";
+          } else {
+            st.textContent = "Не хватает: " + missing.join(", ");
+            st.className = "gen-build__status gen-build__status--warn";
+          }
+        }
+      }
+
+      var genFormEl = document.getElementById("generate-form");
+      if (genFormEl) {
+        genFormEl.addEventListener("input", updateRequestBuild);
+        genFormEl.addEventListener("change", updateRequestBuild);
+      }
+
+      syncWheelSource();
+      syncWrapFilm();
+      syncWheels();
+      if (photoDz) photoDz.refresh();
+      if (wrapDz) wrapDz.refresh();
+      if (wheelDz) wheelDz.refresh();
+      updateRequestBuild();
+    })();
+  </script>
+{% endblock %}

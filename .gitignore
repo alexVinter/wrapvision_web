@@ -1,0 +1,53 @@
+# --- Секреты и окружение ---
+.env
+.env.*
+!.env.example
+
+# Локальные переопределения без коммита
+*.local
+.env.local
+.env.*.local
+
+# Ключи и сертификаты
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa
+id_rsa.pub
+*.pem.asc
+
+# Облачные / OAuth секреты (типовые имена)
+credentials.json
+*-credentials.json
+client_secret*.json
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+
+# Сессии и прод-секреты приложения (если вынесены в файлы)
+**/secrets/
+**/.secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+*.so
+.venv/
+venv/
+ENV/
+
+# --- Локальные данные приложения (не в публичный репозиторий) ---
+wrapvision.db
+uploads/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
