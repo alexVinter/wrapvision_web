@@ -22,8 +22,17 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.db.database import SESSION_SECRET_KEY, SessionLocal
 from app.db.init_db import init_db
-from app.db.models import AccessStatus, Client, GenerationMode, Project, User, WheelCatalog
+from app.db.models import (
+    AccessStatus,
+    Client,
+    GenerationMode,
+    Project,
+    User,
+    WheelCatalog,
+    WrapColorCatalog,
+)
 from app.db.seed_wheels import ensure_wheel_catalog
+from app.db.seed_wrap_colors import ensure_wrap_color_catalog
 from app.services.generator import (
     DemoResultMissingError,
     GenerationInput,
@@ -48,6 +57,13 @@ from app.services.service_center_service import (
     normalize_city,
 )
 from app.services.wheel_catalog_service import filesystem_path, list_wheels, public_url
+from app.services.wrap_color_service import (
+    ensure_solid_png,
+    get_active_by_id,
+    list_active_wrap_colors,
+    public_url_for_hex,
+    normalize_hex,
+)
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent
@@ -68,6 +84,7 @@ async def lifespan(_app: FastAPI):
     with SessionLocal() as db:
         ensure_demo_centers(db)
         ensure_wheel_catalog(db)
+        ensure_wrap_color_catalog(db)
     yield
 
 
@@ -195,6 +212,27 @@ def _result_wheel_display(db: Session, p: Project) -> tuple[str | None, str]:
     return None, ""
 
 
+def _result_wrap_display(db: Session, p: Project) -> tuple[str | None, str, str]:
+    """URL превью плёнки, строка для мета, legacy basename для uploads (или пусто)."""
+    ws = (p.wrap_film_source or "").strip().lower()
+    if p.wrap_color_catalog_id and ws in ("", "color_catalog"):
+        wc = db.get(WrapColorCatalog, p.wrap_color_catalog_id)
+        if wc and wc.is_active:
+            try:
+                hx = normalize_hex(wc.hex_code)
+            except ValueError:
+                return None, "", p.wrap_upload_name or ""
+            ensure_solid_png(hx)
+            url = public_url_for_hex(hx)
+            line = f"цвет — {wc.name} ({hx})"
+            return url, line, ""
+    if p.wrap_upload_name:
+        fn = p.wrap_upload_name.strip()
+        if fn:
+            return f"/uploads/{fn}", f"файл — {fn}", fn
+    return None, "", ""
+
+
 def _result_page_response(
     request: Request,
     *,
@@ -207,6 +245,8 @@ def _result_page_response(
     service_centers: list[Any],
     wheel_ref_image_url: str | None = None,
     wheel_line: str = "",
+    wrap_ref_image_url: str | None = None,
+    wrap_line: str = "",
     project_id: int | None = None,
     created_at: datetime | None = None,
 ) -> HTMLResponse:
@@ -217,6 +257,8 @@ def _result_page_response(
         "result.html",
         car_filename=car_filename,
         wrap_filename=wrap_filename,
+        wrap_ref_image_url=wrap_ref_image_url,
+        wrap_line=wrap_line,
         wheels_need=wheels_need,
         wheel_filename=wheel_filename,
         result_image_url=result_image_url,
@@ -242,7 +284,7 @@ def _simple_error_page(title: str, message: str, status_code: int) -> HTMLRespon
             "<!DOCTYPE html><html lang='ru'><head><meta charset='UTF-8'>"
             "<meta name='viewport' content='width=device-width, initial-scale=1'>"
             f"<title>{safe_title}</title>"
-            "<link rel='stylesheet' href='/static/css/style.css?v=28'></head>"
+            "<link rel='stylesheet' href='/static/css/style.css?v=29'></head>"
             "<body class='page ds-page'><main class='shell'><section class='card'>"
             f"<h1>{safe_title}</h1><p>{safe_msg}</p>"
             "<p><a class='link-back' href='/'>← На главную</a></p>"
@@ -307,7 +349,7 @@ def _project_to_showcase_namespace(p: Project) -> SimpleNamespace:
         wheels_on = bool(p.wheels_enabled)
     else:
         wheels_on = bool(p.wheel_upload_name or p.wheel_catalog_id)
-    has_wrap = bool(p.wrap_upload_name)
+    has_wrap = bool(p.wrap_upload_name or p.wrap_color_catalog_id)
     if has_wrap and wheels_on:
         desc = "В запросе: смена плёнки по образцу и диски."
     elif has_wrap:
@@ -567,6 +609,7 @@ async def result_by_project(request: Request, project_id: int):
         else:
             wheels_need = bool(wheel_fn or p.wheel_catalog_id)
         wheel_ref_url, wheel_line = _result_wheel_display(db, p)
+        wrap_ref_url, wrap_line, wrap_fn = _result_wrap_display(db, p)
         result_url = p.result_image_path or RESULT_IMAGE_URL
 
     return _result_page_response(
@@ -580,6 +623,8 @@ async def result_by_project(request: Request, project_id: int):
         service_centers=service_centers_list,
         wheel_ref_image_url=wheel_ref_url,
         wheel_line=wheel_line,
+        wrap_ref_image_url=wrap_ref_url,
+        wrap_line=wrap_line,
         project_id=p.id,
         created_at=p.created_at,
     )
@@ -593,17 +638,31 @@ async def index(request: Request):
         return RedirectResponse(url=f"/login?next={nxt}", status_code=303)
     with SessionLocal() as db:
         wheel_rows = list_wheels(db)
+        color_rows = list_active_wrap_colors(db)
         showcase_items = _home_showcase_items(db, request)
     wheel_catalog_items = [
         SimpleNamespace(id=w.id, title=w.title, img_url=public_url(w))
         for w in wheel_rows
     ]
+    wrap_color_items: list[SimpleNamespace] = []
+    for c in color_rows:
+        try:
+            wrap_color_items.append(
+                SimpleNamespace(
+                    id=c.id,
+                    name=c.name,
+                    hex_code=normalize_hex(c.hex_code),
+                )
+            )
+        except ValueError:
+            continue
     return _html(
         request,
         "index.html",
         stand_reference_url="/static/img/stand_reference.jpg",
         current_user=_nav_user(request),
         wheel_catalog_items=wheel_catalog_items,
+        wrap_color_items=wrap_color_items,
         showcase_items=showcase_items,
     )
 
@@ -613,6 +672,8 @@ async def generate(
     request: Request,
     photo: UploadFile = File(...),
     wrap_needed: str = Form("yes"),
+    wrap_film_source: str = Form("color_catalog"),
+    wrap_color_catalog_id: str = Form(""),
     wrap_sample: UploadFile | None = File(None),
     wheels_needed: str = Form(...),
     wheel_image: UploadFile | None = File(None),
@@ -650,15 +711,61 @@ async def generate(
         )
 
     car_filename = await _save_upload(photo, "car")
+
+    wrap_filename: str | None = None
+    wrap_color_catalog_pk: int | None = None
+    wrap_film_stored: str | None = None
+    wrap_path: Path | None = None
+    wrap_color_row: WrapColorCatalog | None = None
+
     if wrap_need:
-        if wrap_sample is None or not (wrap_sample.filename or "").strip():
+        wfilm = (wrap_film_source or "color_catalog").strip().lower()
+        if wfilm not in ("color_catalog", "upload"):
             raise HTTPException(
                 status_code=400,
-                detail="Загрузите фото образца плёнки",
+                detail="Источник плёнки: каталог цветов или загрузка файла",
             )
-        wrap_filename = await _save_upload(wrap_sample, "wrap")
+        with SessionLocal() as db:
+            has_wrap_colors = len(list_active_wrap_colors(db)) > 0
+        if wfilm == "color_catalog" and not has_wrap_colors:
+            wfilm = "upload"
+        if wfilm == "color_catalog":
+            raw_cid = (wrap_color_catalog_id or "").strip()
+            if not raw_cid:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Выберите цвет плёнки из каталога",
+                )
+            try:
+                wrap_color_catalog_pk = int(raw_cid)
+            except ValueError as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Некорректный выбор цвета",
+                ) from exc
+            with SessionLocal() as db:
+                wc = get_active_by_id(db, wrap_color_catalog_pk)
+            if wc is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Цвет плёнки не найден или отключён",
+                )
+            wrap_color_row = wc
+            hx = normalize_hex(wc.hex_code)
+            wrap_path = ensure_solid_png(hx)
+            wrap_film_stored = "color_catalog"
+        else:
+            if wrap_sample is None or not (wrap_sample.filename or "").strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Загрузите фото образца плёнки",
+                )
+            wrap_filename = await _save_upload(wrap_sample, "wrap")
+            wrap_path = UPLOADS_DIR / wrap_filename
+            wrap_film_stored = "upload"
+            wrap_color_catalog_pk = None
     else:
-        wrap_filename = None
+        wrap_path = None
 
     wheel_filename: str | None = None
     wheel_catalog_pk: int | None = None
@@ -704,7 +811,6 @@ async def generate(
         wheel_path_fs = None
 
     car_path = UPLOADS_DIR / car_filename
-    wrap_path = (UPLOADS_DIR / wrap_filename) if wrap_filename else None
     wheel_path = wheel_path_fs
 
     try:
@@ -757,6 +863,9 @@ async def generate(
             final_prompt=final_prompt,
             city=city_norm,
             access_status=access_val,
+            wrap_film_source=wrap_film_stored if wrap_need else None,
+            wrap_color_catalog_id=wrap_color_catalog_pk if wrap_need else None,
+            wrap_upload_name=wrap_filename if wrap_need and wrap_film_stored == "upload" else None,
             wheels_enabled=wheels_need,
             wheel_source=w_src,
             wheel_catalog_id=w_cat,
@@ -785,7 +894,7 @@ async def generate(
                 "<!DOCTYPE html><html lang='ru'><head><meta charset='UTF-8'>"
                 "<meta name='viewport' content='width=device-width, initial-scale=1'>"
                 "<title>Ошибка</title>"
-                "<link rel='stylesheet' href='/static/css/style.css?v=28'></head>"
+                "<link rel='stylesheet' href='/static/css/style.css?v=29'></head>"
                 "<body class='page ds-page'><main class='shell'><section class='card'>"
                 "<h1 class='page-title'>Нет демо-изображения результата</h1>"
                 f"<p class='lead'>{msg}</p>"
@@ -803,10 +912,20 @@ async def generate(
         if row is not None:
             row.result_image_path = result_image_url
             row.car_upload_name = car_filename
-            row.wrap_upload_name = wrap_filename
             db.commit()
             db.refresh(row)
             project_created_at = row.created_at
+
+    wrap_ref_url: str | None = None
+    wrap_line_out = ""
+    if wrap_need:
+        if wrap_color_row is not None:
+            hx = normalize_hex(wrap_color_row.hex_code)
+            wrap_ref_url = public_url_for_hex(hx)
+            wrap_line_out = f"цвет — {wrap_color_row.name} ({hx})"
+        elif wrap_filename:
+            wrap_ref_url = f"/uploads/{wrap_filename}"
+            wrap_line_out = f"файл — {wrap_filename}"
 
     wheel_ref_url: str | None = None
     wheel_line_out = ""
@@ -832,6 +951,8 @@ async def generate(
         service_centers=service_centers_list,
         wheel_ref_image_url=wheel_ref_url,
         wheel_line=wheel_line_out,
+        wrap_ref_image_url=wrap_ref_url,
+        wrap_line=wrap_line_out,
         project_id=project_id,
         created_at=project_created_at,
     )

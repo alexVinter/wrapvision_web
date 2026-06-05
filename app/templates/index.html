@@ -75,7 +75,7 @@
           </div>
         </section>
 
-        <section class="gen-block">
+        <section class="gen-block" id="wrap-film-block">
           <div class="gen-block__head">
             <span class="gen-block__tag">3</span>
             <h2 class="gen-block__title">Смена плёнки</h2>
@@ -84,7 +84,52 @@
             <label class="chip chip--segment"><input type="radio" name="wrap_needed" value="yes" checked><span>Да</span></label>
             <label class="chip chip--segment"><input type="radio" name="wrap_needed" value="no"><span>Нет</span></label>
           </div>
-          <p class="gen-block__hint gen-block__hint--tight">При «Нет» файл не нужен.</p>
+          <p class="gen-block__hint gen-block__hint--tight">При «Нет» образец не нужен.</p>
+          {% if wrap_color_items %}
+          <p class="gen-block__hint gen-block__hint--tight">Цвет из каталога (однотонный PNG создаётся автоматически) или загрузка своего файла.</p>
+          <div class="wrap-film-source-toggle chip-row chip-row--segmented gen-seg gen-seg--tight" role="group" aria-label="Источник образца плёнки">
+            <label class="chip chip--segment chip--source"><input type="radio" name="wrap_film_source" value="color_catalog" checked><span>Каталог цветов</span></label>
+            <label class="chip chip--segment chip--source"><input type="radio" name="wrap_film_source" value="upload"><span>Загрузка файла</span></label>
+          </div>
+          <div id="wrap-color-panel" class="wrap-color-panel">
+            <div class="wrap-color-grid" role="list">
+              {% for c in wrap_color_items %}
+              <label class="wrap-color-swatch">
+                <input type="radio" name="wrap_color_catalog_id" value="{{ c.id }}" {% if loop.first %}checked{% endif %}>
+                <span class="wrap-color-swatch__inner">
+                  <span class="wrap-color-swatch__chip" style="background-color: {{ c.hex_code }};"></span>
+                  <span class="wrap-color-swatch__hex">{{ c.hex_code }}</span>
+                  <span class="wrap-color-swatch__name">{{ c.name }}</span>
+                </span>
+              </label>
+              {% endfor %}
+            </div>
+            <p class="wrap-color__status" id="wrap-color-status" role="status" hidden></p>
+          </div>
+          <div id="wrap-upload-panel" class="wrap-upload-panel" hidden>
+            <p class="gen-block__hint gen-block__hint--tight gen-wrap-upload-hint">Образец плёнки: текстура или образец, не фото автомобиля.</p>
+            <div class="gen-dz gen-dz--tight gen-dz--optional" id="wrap-film-field" data-gen-dropzone>
+              <label class="gen-dz__hit gen-dz__hit--pad" for="wrap_sample">
+                <input type="file" id="wrap_sample" class="gen-dz__input" name="wrap_sample" accept="image/*">
+                <span class="gen-dz__stack">
+                  <span class="gen-dz__preview-wrap" hidden>
+                    <img class="gen-dz__thumb" alt="" decoding="async">
+                  </span>
+                  <span class="gen-dz__idle">
+                    <span class="gen-dz__line">Загрузить образец</span>
+                    <span class="gen-dz__sub">JPG или PNG</span>
+                  </span>
+                  <span class="gen-dz__ready" hidden>
+                    <span class="gen-dz__badge">Загружено</span>
+                    <span class="gen-dz__fname"></span>
+                    <span class="gen-dz__sub">Нажмите или перетащите, чтобы заменить</span>
+                  </span>
+                </span>
+              </label>
+            </div>
+          </div>
+          {% else %}
+          <input type="hidden" name="wrap_film_source" value="upload">
           <p class="gen-block__hint gen-block__hint--tight gen-wrap-upload-hint">Образец плёнки: текстура или образец, не фото автомобиля.</p>
           <div class="gen-dz gen-dz--tight gen-dz--optional" id="wrap-film-field" data-gen-dropzone>
             <label class="gen-dz__hit gen-dz__hit--pad" for="wrap_sample">
@@ -105,6 +150,7 @@
               </span>
             </label>
           </div>
+          {% endif %}
         </section>
 
         <section class="gen-block">
@@ -163,7 +209,7 @@
         </section>
 
         <div class="gen-rail__cta">
-          <button type="submit" class="btn btn--primary btn--xl gen-cta">Сгенерировать превью</button>
+          <button type="submit" class="btn btn--primary btn--xl gen-cta" id="gen-submit-btn" data-default-label="Сгенерировать превью">Сгенерировать превью</button>
         </div>
       </div>
 
@@ -266,6 +312,10 @@
       var wheelInput = document.getElementById("wheel_image");
       var catPanel = document.getElementById("wheel-catalog-panel");
       var upPanel = document.getElementById("wheel-upload-panel");
+      var wrapFilmBlock = document.getElementById("wrap-film-block");
+      var wrapColorPanel = document.getElementById("wrap-color-panel");
+      var wrapUploadPanel = document.getElementById("wrap-upload-panel");
+      var wrapColorStatus = document.getElementById("wrap-color-status");
       var wrapFilmField = document.getElementById("wrap-film-field");
       var wrapSampleInput = document.getElementById("wrap_sample");
       var wheelCatalogStatus = document.getElementById("wheel-catalog-status");
@@ -374,6 +424,53 @@
         return !!(y && y.checked);
       }
 
+      function wrapHasColorCatalog() {
+        return !!(wrapColorPanel && document.querySelector('input[name="wrap_film_source"]'));
+      }
+
+      function wrapUseUpload() {
+        if (!wrapHasColorCatalog()) return true;
+        var u = document.querySelector('input[name="wrap_film_source"][value="upload"]');
+        return !!(u && u.checked);
+      }
+
+      function updateWrapColorStatus() {
+        if (!wrapColorStatus) return;
+        var need = wrapFilmNeeded();
+        if (!need || !wrapHasColorCatalog() || wrapUseUpload()) {
+          wrapColorStatus.hidden = true;
+          return;
+        }
+        var checked = document.querySelector('input[name="wrap_color_catalog_id"]:checked');
+        var lab = checked && checked.closest(".wrap-color-swatch");
+        var hx = lab && lab.querySelector(".wrap-color-swatch__hex");
+        var nm = lab && lab.querySelector(".wrap-color-swatch__name");
+        var h = hx ? hx.textContent.trim() : "";
+        var n = nm ? nm.textContent.trim() : "";
+        wrapColorStatus.textContent = h ? "Цвет: " + (n ? n + " · " : "") + h : "Выберите цвет.";
+        wrapColorStatus.hidden = false;
+      }
+
+      function syncWrapFilmSource() {
+        if (!wrapHasColorCatalog()) {
+          updateWrapColorStatus();
+          return;
+        }
+        var useCat = !wrapUseUpload();
+        if (wrapColorPanel) wrapColorPanel.hidden = !useCat;
+        if (wrapUploadPanel) wrapUploadPanel.hidden = !useCat;
+        if (wrapColorPanel) {
+          wrapColorPanel.querySelectorAll('input[name="wrap_color_catalog_id"]').forEach(function (i) {
+            i.disabled = !wrapFilmNeeded() || !useCat;
+          });
+        }
+        if (!wrapUseUpload() && wrapDz) {
+          wrapDz.clear();
+        }
+        updateWrapColorStatus();
+        updateRequestBuild();
+      }
+
       function updateWheelCatalogStatus() {
         if (!wheelCatalogStatus) return;
         var needWheels =
@@ -412,17 +509,26 @@
 
       function syncWrapFilm() {
         var need = wrapFilmNeeded();
+        if (wrapFilmBlock) {
+          wrapFilmBlock.classList.toggle("is-muted", !need);
+        }
         if (wrapFilmField) {
           wrapFilmField.classList.toggle("is-muted", !need);
         }
         if (wrapSampleInput) {
-          wrapSampleInput.required = need;
-          wrapSampleInput.disabled = !need;
+          wrapSampleInput.required = !!(need && wrapUseUpload());
+          wrapSampleInput.disabled = !need || (wrapHasColorCatalog() && !wrapUseUpload());
         }
-        if (!need && wrapSampleInput) {
+        if (!need && wrapSampleInput && wrapDz) {
           wrapSampleInput.value = "";
-          if (wrapDz) wrapDz.clear();
+          wrapDz.clear();
         }
+        if (wrapHasColorCatalog()) {
+          document.querySelectorAll('input[name="wrap_film_source"]').forEach(function (r) {
+            r.disabled = !need;
+          });
+        }
+        syncWrapFilmSource();
         updateWheelStepLabels();
         updateRequestBuild();
       }
@@ -497,6 +603,18 @@
           updateRequestBuild();
         });
       });
+      document.querySelectorAll('input[name="wrap_film_source"]').forEach(function (el) {
+        el.addEventListener("change", function () {
+          syncWrapFilmSource();
+          syncWrapFilm();
+        });
+      });
+      document.querySelectorAll('input[name="wrap_color_catalog_id"]').forEach(function (el) {
+        el.addEventListener("change", function () {
+          updateWrapColorStatus();
+          updateRequestBuild();
+        });
+      });
 
       var buildPvRevoke = { photo: null, wrap: null, wheel: null };
 
@@ -550,14 +668,38 @@
         if (rowWrap) {
           if (!wrapOn) {
             rowWrap.textContent = "Выключена";
+          } else if (wrapHasColorCatalog() && !wrapUseUpload()) {
+            var cLab = document.querySelector('input[name="wrap_color_catalog_id"]:checked');
+            var cSw = cLab && cLab.closest(".wrap-color-swatch");
+            var cHx = cSw && cSw.querySelector(".wrap-color-swatch__hex");
+            var cNm = cSw && cSw.querySelector(".wrap-color-swatch__name");
+            var hxs = cHx ? cHx.textContent.trim() : "";
+            var nms = cNm ? cNm.textContent.trim() : "";
+            rowWrap.textContent = hxs ? "Цвет: " + (nms ? nms + " · " : "") + hxs : "Выберите цвет";
           } else {
             var wFile = wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0];
-            rowWrap.textContent = wFile ? "Включена, загружено" : "Включена, файл не загружен";
+            rowWrap.textContent = wFile ? "Включена, файл загружен" : "Включена, загрузите файл";
           }
         }
         revokeBuildKey("wrap");
         if (imgWrap && pvWrap) {
-          if (wrapOn && wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0]) {
+          if (wrapOn && wrapHasColorCatalog() && !wrapUseUpload()) {
+            var cLab2 = document.querySelector('input[name="wrap_color_catalog_id"]:checked');
+            var cSw2 = cLab2 && cLab2.closest(".wrap-color-swatch");
+            var cHx2 = cSw2 && cSw2.querySelector(".wrap-color-swatch__hex");
+            var hx2 = cHx2 ? cHx2.textContent.trim() : "";
+            if (hx2) {
+              var svg =
+                '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="' +
+                hx2.replace(/"/g, "") +
+                '"/></svg>';
+              imgWrap.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+              pvWrap.hidden = false;
+            } else {
+              imgWrap.removeAttribute("src");
+              pvWrap.hidden = true;
+            }
+          } else if (wrapOn && wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0]) {
             var wf = wrapSampleInput.files[0];
             if (wf.type && wf.type.indexOf("image/") === 0) {
               var uw = URL.createObjectURL(wf);
@@ -629,9 +771,16 @@
           missing.push("фото автомобиля");
         }
         if (wrapOn) {
-          var wNeed = wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0];
-          if (!wNeed) {
-            missing.push("образец плёнки");
+          if (wrapHasColorCatalog() && !wrapUseUpload()) {
+            var hasCol = document.querySelector('input[name="wrap_color_catalog_id"]:checked');
+            if (!hasCol) {
+              missing.push("цвет плёнки");
+            }
+          } else {
+            var wNeed = wrapSampleInput && wrapSampleInput.files && wrapSampleInput.files[0];
+            if (!wNeed) {
+              missing.push("образец плёнки");
+            }
           }
         }
         if (needWheels) {
@@ -657,10 +806,59 @@
       }
 
       var genFormEl = document.getElementById("generate-form");
+      var genSubmitBtn = document.getElementById("gen-submit-btn");
+      var genSubmitDefaultLabel =
+        (genSubmitBtn && genSubmitBtn.getAttribute("data-default-label")) || "Сгенерировать превью";
+
+      function resetGenerateSubmitUi() {
+        if (!genFormEl) return;
+        delete genFormEl.dataset.generating;
+        if (!genSubmitBtn) return;
+        genSubmitBtn.disabled = false;
+        genSubmitBtn.removeAttribute("aria-busy");
+        genSubmitBtn.classList.remove("is-loading");
+        genSubmitBtn.textContent = genSubmitDefaultLabel;
+      }
+
+      function lockGenerateSubmitUi() {
+        if (!genFormEl || genFormEl.dataset.generating === "1") return false;
+        genFormEl.dataset.generating = "1";
+        if (genSubmitBtn) {
+          genSubmitBtn.disabled = true;
+          genSubmitBtn.setAttribute("aria-busy", "true");
+          genSubmitBtn.classList.add("is-loading");
+          genSubmitBtn.textContent = "Создаём превью…";
+        }
+        return true;
+      }
+
       if (genFormEl) {
+        genFormEl.addEventListener("submit", function (e) {
+          if (genFormEl.dataset.generating === "1") {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+          }
+          lockGenerateSubmitUi();
+        });
         genFormEl.addEventListener("input", updateRequestBuild);
         genFormEl.addEventListener("change", updateRequestBuild);
       }
+
+      if (genSubmitBtn) {
+        genSubmitBtn.addEventListener("click", function (e) {
+          if (genFormEl && genFormEl.dataset.generating === "1") {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        });
+      }
+
+      window.addEventListener("pageshow", function (ev) {
+        if (ev.persisted) {
+          resetGenerateSubmitUi();
+        }
+      });
 
       syncWheelSource();
       syncWrapFilm();

@@ -73,6 +73,22 @@ class WheelCatalog(Base):
     projects: Mapped[list["Project"]] = relationship(back_populates="wheel_catalog")
 
 
+class WrapColorCatalog(Base):
+    """Справочник цветов плёнки (hex); однотонный PNG создаётся на диске при генерации."""
+
+    __tablename__ = "wrap_color_catalog"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128))
+    hex_code: Mapped[str] = mapped_column(String(16))
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="1", nullable=False
+    )
+    sort_order: Mapped[int] = mapped_column(default=0, server_default="0")
+
+    projects: Mapped[list["Project"]] = relationship(back_populates="wrap_color_catalog")
+
+
 class ServiceCenter(Base):
     __tablename__ = "service_centers"
 
@@ -124,6 +140,10 @@ class Project(Base):
     result_image_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     car_upload_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
     wrap_upload_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    wrap_film_source: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    wrap_color_catalog_id: Mapped[int | None] = mapped_column(
+        ForeignKey("wrap_color_catalog.id"), nullable=True, index=True
+    )
     wheel_upload_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
     wheels_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     wheel_source: Mapped[str | None] = mapped_column(String(16), nullable=True)
@@ -147,5 +167,8 @@ class Project(Base):
         back_populates="projects"
     )
     wheel_catalog: Mapped["WheelCatalog | None"] = relationship(
+        back_populates="projects"
+    )
+    wrap_color_catalog: Mapped["WrapColorCatalog | None"] = relationship(
         back_populates="projects"
     )

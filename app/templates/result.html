@@ -76,7 +76,7 @@
             <ul class="showcase-details__list">
               <li><span class="showcase-details__k">Диски</span> {% if wheels_need %}да{% if wheel_line %} · {{ wheel_line }}{% elif wheel_filename %} · {{ wheel_filename }}{% endif %}{% else %}нет{% endif %}</li>
               <li><span class="showcase-details__k">Файл авто</span> <code class="showcase-details__code">{{ car_filename }}</code></li>
-              <li><span class="showcase-details__k">Плёнка</span> {% if wrap_filename %}<code class="showcase-details__code">{{ wrap_filename }}</code>{% else %}без смены{% endif %}</li>
+              <li><span class="showcase-details__k">Плёнка</span> {% if wrap_line %}{{ wrap_line }}{% elif wrap_filename %}<code class="showcase-details__code">{{ wrap_filename }}</code>{% else %}без смены{% endif %}</li>
             </ul>
           </details>
         </aside>
@@ -88,9 +88,9 @@
           <p class="showcase-band__sub">Референсы, которые участвовали в запросе.</p>
         </div>
         {% if car_filename %}
-        {% if wrap_filename and wheels_need %}
+        {% if (wrap_ref_image_url or wrap_filename) and wheels_need %}
         <p class="showcase-band__hint">Порядок в промпте: стенд → авто → плёнка → диски.</p>
-        {% elif wrap_filename %}
+        {% elif (wrap_ref_image_url or wrap_filename) %}
         <p class="showcase-band__hint">Порядок в промпте: стенд → авто → плёнка.</p>
         {% elif wheels_need %}
         <p class="showcase-band__hint">Порядок в промпте: стенд → авто → диски.</p>
@@ -108,7 +108,13 @@
             <div class="ref-rail__img"><img src="/uploads/{{ car_filename }}" alt="Ваш автомобиль" loading="lazy"></div>
             <figcaption>Ваше авто</figcaption>
           </figure>
-          {% if wrap_filename %}
+          {% if wrap_ref_image_url %}
+          <figure class="ref-rail__item">
+            <div class="ref-rail__tag">3 · плёнка</div>
+            <div class="ref-rail__img"><img src="{{ wrap_ref_image_url }}" alt="Референс плёнки" loading="lazy"></div>
+            <figcaption>Плёнка</figcaption>
+          </figure>
+          {% elif wrap_filename %}
           <figure class="ref-rail__item">
             <div class="ref-rail__tag">3 · плёнка</div>
             <div class="ref-rail__img"><img src="/uploads/{{ wrap_filename }}" alt="Референс плёнки" loading="lazy"></div>
@@ -118,7 +124,7 @@
           {% set wheel_img = wheel_ref_image_url if wheel_ref_image_url else (('/uploads/' ~ wheel_filename) if (wheels_need and wheel_filename) else '') %}
           {% if wheels_need and wheel_img %}
           <figure class="ref-rail__item">
-            <div class="ref-rail__tag">{% if wrap_filename %}4{% else %}3{% endif %} · диски</div>
+            <div class="ref-rail__tag">{% if wrap_ref_image_url or wrap_filename %}4{% else %}3{% endif %} · диски</div>
             <div class="ref-rail__img"><img src="{{ wheel_img }}" alt="Референс дисков" loading="lazy"></div>
             <figcaption>Диски</figcaption>
           </figure>

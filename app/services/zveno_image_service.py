@@ -97,6 +97,8 @@ class ZvenoImageService:
                         return image_bytes
 
                     last_preview = _response_preview(data)
+                    if _zveno_api_error_permanent(data):
+                        break
                     if attempt < _ZVENO_MAX_ATTEMPTS and _zveno_response_retryable(data):
                         logger.warning(
                             "Zveno: нет изображения в ответе (попытка %s/%s), повтор: %s",
@@ -115,6 +117,29 @@ class ZvenoImageService:
         raise ZvenoImageServiceError(
             f"Zveno response does not contain image data. Response preview: {last_preview}"
         )
+
+
+def _zveno_api_error_permanent(data: object) -> bool:
+    """Ответ 200 с полем error (400, invalid image) — повторы не помогут."""
+    if not isinstance(data, dict):
+        return False
+    err = data.get("error")
+    if not isinstance(err, dict):
+        return False
+    code = err.get("code")
+    if code in (400, "400"):
+        return True
+    try:
+        blob = json.dumps(err, ensure_ascii=True).lower()
+    except Exception:
+        blob = str(err).lower()
+    markers = (
+        "invalid",
+        "not valid",
+        "unable to process input image",
+        "invalid_argument",
+    )
+    return any(m in blob for m in markers)
 
 
 def _zveno_response_retryable(data: object) -> bool:

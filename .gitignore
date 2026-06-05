@@ -45,6 +45,10 @@ ENV/
 wrapvision.db
 uploads/
 
+# Однотонные референсы цветов (генерируются при первой генерации)
+app/static/img/wrap_solids/wrap_*.jpg
+app/static/img/wrap_solids/wrap_*.png
+
 # --- IDE / OS ---
 .idea/
 .vscode/

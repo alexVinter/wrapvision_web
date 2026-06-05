@@ -43,6 +43,12 @@ def _migrate_sqlite_light() -> None:
                         "ALTER TABLE projects ADD COLUMN wheel_reference_image_path VARCHAR(512)"
                     )
                 )
+            if "wrap_film_source" not in cols:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN wrap_film_source VARCHAR(24)"))
+            if "wrap_color_catalog_id" not in cols:
+                conn.execute(
+                    text("ALTER TABLE projects ADD COLUMN wrap_color_catalog_id INTEGER")
+                )
 
         if insp.has_table("service_centers"):
             cols_sc = {c["name"] for c in insp.get_columns("service_centers")}
