@@ -1,8 +1,9 @@
 """
-Mock-генератор результата для MVP.
+Модуль запуска генерации изображения.
 
-Дальше: передать ordered_image_paths + final_prompt в Nano Banana API.
-Сейчас: без сети, возвращает локальный demo_result.jpg.
+Модуль получает подготовленный список изображений и итоговый prompt,
+передает данные во внешний сервис генерации и возвращает путь к результату.
+При недоступности внешнего сервиса используется резервное изображение.
 """
 
 import uuid
@@ -54,7 +55,7 @@ def generate_result(data: GenerationInput) -> Path:
     """
     Мок: не вызывает внешний API.
 
-    Зарезервировано под Nano Banana: data.ordered_image_paths, data.final_prompt.
+    Входные данные для внешнего сервиса: data.ordered_image_paths, data.final_prompt.
     """
     _ = data.wheels_enabled
     try:
